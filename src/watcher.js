@@ -274,7 +274,7 @@ function buildGraffitiFile(diff) {
   var data = [
     "default: " + getGraffitiStr(getRandomDiff()),
   ];
-  var validators = getValidators();
+  var validators = getValidators() || [];
   for(var i = 0; i < validators.length; i++) {
     if(!validators[i].match(/^0x[0-9a-f]{96}$/))
       continue;

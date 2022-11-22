@@ -1,6 +1,6 @@
 
 const EventSource = require("eventsource");
-const fetch = require("node-fetch");
+const node_fetch = require("node-fetch");
 const fs = require("fs");
 const getPixels = require("get-pixels");
 const commandLineArgs = require('command-line-args');
@@ -79,6 +79,7 @@ const optionDefinitions = [
 const options = commandLineArgs(optionDefinitions);
 const convert = (from, to) => str => Buffer.from(str, from).toString(to);
 const hexToUtf8 = convert('hex', 'utf8');
+const fetch = node_fetch.default;
 
 var state = null;
 var targetImage = null;

@@ -74,7 +74,6 @@ const optionDefinitions = [
     alias: 'v',
     type: String,
     typeLabel: '{underline graffiti-state.json}',
-    defaultValue: 'graffiti-state.json'
   },
 ];
 const options = commandLineArgs(optionDefinitions);

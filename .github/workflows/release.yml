@@ -40,9 +40,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
 
-    - name: Pack testnet configs
-      run: cd dist && tar cfz testnet-all.tar.gz *
-
     - name: Upload graffiti-daemon-amd64 artifact
       uses: actions/upload-release-asset@v1
       with:

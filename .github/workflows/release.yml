@@ -21,12 +21,12 @@ jobs:
     - name: Install node dependencies
       run: npm i
 
-    - name: Build graffiti daemin
+    - name: Build graffiti daemon
       run: node ./build.js
 
     - name: Get version from package.json
       run: |
-        echo "version=$(cat package.json | grep '"version"' | sed 's/.*"version": *\"\([0-9.]*\)\"/\1/g' | tr -d '\n')" >> $GITHUB_OUTPUT
+        echo "version=$(cat package.json | grep '"version"' | sed 's/.*"version": *\"\([0-9.]*\)\",/\1/g' | tr -d '\n')" >> $GITHUB_OUTPUT
       id: version
 
     - name: Create release

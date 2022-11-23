@@ -53,6 +53,14 @@ const optionDefinitions = [
     defaultValue: 'graffiti.txt'
   },
   {
+    name: 'mode',
+    description: 'The graffiti file output mode (single, list).',
+    alias: 'm',
+    type: String,
+    typeLabel: '{underline list}',
+    defaultValue: 'list'
+  },
+  {
     name: 'template',
     description: 'The graffiti template with <gw> as placeholder for the pixel data.',
     alias: 't',
@@ -119,26 +127,65 @@ function printHelp() {
 async function runDaemon() {
   loadState();
   await parseImage(options['image']);
-
-  var rpchost = options['rpchost'];
-  var chainHeadReq = await fetch(rpchost + "/eth/v2/beacon/blocks/head").then(rsp => rsp.json());
-  var headSlot = parseInt(chainHeadReq.data.message.slot);
-  console.log("Current slot on beacon chain: " + headSlot);
+  
 
   buildGraffitiFile(getImageDiff());
+  runDaemonLoop();
+}
 
-  if(state.lastSlot && state.lastSlot < headSlot) {
-    await syncBlocks(headSlot);
+async function runDaemonLoop() {
+  try {
+    await trySync();  
+    startBlockListener();
+  } catch(ex) {
+    console.error("error in daemon loop: " + ex.toString());
+    await sleepPromise(5000);
+    runDaemonLoop();
   }
+}
 
-  console.log("start event listener");
-  const blockEvtSource = new EventSource(rpchost + "/eth/v1/events?topics=block");
+async function trySync() {
+  try {
+    var chainHeadReq = await fetch(options['rpchost'] + "/eth/v2/beacon/blocks/head").then(rsp => rsp.json());
+    var headSlot = parseInt(chainHeadReq.data.message.slot);
+    console.log("Current slot on beacon chain: " + headSlot);
+    if(state.lastSlot && state.lastSlot < headSlot) {
+      await syncBlocks(headSlot);
+    }
+    else if(headSlot < state.lastSlot) {
+      // network reset - clear state
+      state.lastSlot = headSlot;
+      state.image = {};
+      saveState();
+    }
+  } catch(ex) {
+    console.error("error during synchronization: " + ex.toString());
+    await sleepPromise(5000);
+    await trySync();
+  }
+}
+
+function sleepPromise(timeout) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, timeout);
+  })
+}
+
+function startBlockListener() {
+  console.log("start block listener");
+  const blockEvtSource = new EventSource(options['rpchost'] + "/eth/v1/events?topics=block");
 
   blockEvtSource.addEventListener("open", function(evt) {
     checkBlockGraffiti();
   });
   blockEvtSource.addEventListener("block", function(evt) {
     checkBlockGraffiti();
+  });
+  blockEvtSource.addEventListener("error", async function(evt) {
+    blockEvtSource.close();
+    console.error("block eventsource error: ", evt);
+    await sleepPromise(5000);
+    runDaemonLoop();
   });
 }
 
@@ -272,17 +319,22 @@ function buildGraffitiFile(diff) {
     return options['template'].replace(/<gw>/, gwt);
   };
 
-  var data = [
-    "default: " + getGraffitiStr(getRandomDiff()),
-  ];
-  var validators = getValidators() || [];
-  for(var i = 0; i < validators.length; i++) {
-    if(!validators[i].match(/^0x[0-9a-f]{96}$/))
-      continue;
-    data.push(validators[i] + ": " + getGraffitiStr(getRandomDiff()));
+
+  var data = [];
+  if(options['mode'] == "single") {
+    data.push(getGraffitiStr(getRandomDiff()));
+  }
+  else if(options['mode'] == "list") {
+    data.push("default: " + getGraffitiStr(getRandomDiff()));
+    var validators = getValidators() || [];
+    for(var i = 0; i < validators.length; i++) {
+      if(!validators[i].match(/^0x[0-9a-f]{96}$/))
+        continue;
+      data.push(validators[i] + ": " + getGraffitiStr(getRandomDiff()));
+    }
   }
 
-  console.log("Rebuilt graffiti file (" + diffLen + " diffs, " + validators.length + " keys) " + options['file']);
+  console.log("Rebuilt graffiti file (" + diffLen + " diffs, " + data.length + " entries) " + options['file']);
 
   fs.writeFileSync(options['file'], data.join("\n"));
 }

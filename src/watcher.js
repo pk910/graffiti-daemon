@@ -128,14 +128,13 @@ async function runDaemon() {
   loadState();
   await parseImage(options['image']);
   
-
-  buildGraffitiFile(getImageDiff());
   runDaemonLoop();
 }
 
 async function runDaemonLoop() {
   try {
-    await trySync();  
+    await trySync();
+    buildGraffitiFile(getImageDiff());
     startBlockListener();
   } catch(ex) {
     console.error("error in daemon loop: " + ex.toString());
